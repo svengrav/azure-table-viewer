@@ -51,6 +51,28 @@ async function listTables(connectionString: string): Promise<string[]> {
   return tables;
 }
 
+async function deleteEntity(
+  connectionString: string,
+  tableName: string,
+  partitionKey: string,
+  rowKey: string
+): Promise<void> {
+  const client = TableClient.fromConnectionString(connectionString, tableName);
+  await client.deleteEntity(partitionKey, rowKey);
+}
+
+async function updateEntity(
+  connectionString: string,
+  tableName: string,
+  entity: TableEntity
+): Promise<void> {
+  const client = TableClient.fromConnectionString(connectionString, tableName);
+  // Entferne timestamp und etag, da diese vom Server verwaltet werden
+  const { timestamp, etag, ...entityData } = entity as TableEntity & { etag?: string };
+  // Replace verwendet PUT statt MERGE - besser für CORS
+  await client.upsertEntity(entityData as any, "Replace");
+}
+
 // ============ Storage Keys ============
 const STORAGE_KEY_CONNECTION = "atv_connectionString";
 
@@ -283,9 +305,63 @@ function highlightJson(json: unknown): React.ReactNode[] {
   return result;
 }
 
-// ============ JsonModal ============
-function JsonModal({ json, onClose }: { json: unknown; onClose: () => void }) {
-  const formatted = JSON.stringify(json, null, 2);
+// ============ EditModal (für alle Werte) ============
+function EditModal({ 
+  value,
+  columnName,
+  isEditable,
+  onClose, 
+  onSave 
+}: { 
+  value: unknown;
+  columnName: string;
+  isEditable: boolean;
+  onClose: () => void;
+  onSave: (newValue: string) => Promise<void>;
+}) {
+  const { isJson } = tryParseJson(value);
+  const stringValue = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(stringValue);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleStartEdit = () => {
+    setEditValue(stringValue);
+    setIsEditing(true);
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    // Bei JSON validieren
+    if (isJson) {
+      try {
+        JSON.parse(editValue);
+      } catch {
+        setError("Ungültiges JSON-Format");
+        return;
+      }
+    }
+    
+    setIsSaving(true);
+    setError(null);
+    try {
+      await onSave(editValue);
+      setIsEditing(false);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Fehler beim Speichern");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditValue(stringValue);
+    setError(null);
+  };
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -294,7 +370,11 @@ function JsonModal({ json, onClose }: { json: unknown; onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">JSON Preview</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-800">{columnName}</h3>
+            {isJson && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">JSON</span>}
+            {!isEditable && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">🔒 Schreibgeschützt</span>}
+          </div>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
@@ -302,23 +382,101 @@ function JsonModal({ json, onClose }: { json: unknown; onClose: () => void }) {
             ×
           </button>
         </div>
+        
+        {error && (
+          <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+            {error}
+          </div>
+        )}
+        
         <div className="overflow-auto p-4 flex-1 bg-gray-50">
-          <pre className="text-sm font-mono whitespace-pre-wrap wrap-break-word">
-            {highlightJson(json)}
-          </pre>
+          {isEditing ? (
+            <textarea
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="w-full h-full min-h-[200px] p-3 text-sm font-mono bg-white border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              spellCheck={false}
+              autoFocus
+            />
+          ) : (
+            <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+              {isJson ? highlightJson(value) : stringValue}
+            </pre>
+          )}
         </div>
-        <div className="px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
+        
+        <div className="px-4 py-3 border-t border-gray-200 flex justify-between">
+          <div>
+            {!isEditing && (
+              <button
+                onClick={() => navigator.clipboard.writeText(stringValue)}
+                className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                Kopieren
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? "Speichern..." : "Speichern"}
+                </button>
+              </>
+            ) : (
+              <>
+                {isEditable && (
+                  <button
+                    onClick={handleStartEdit}
+                    className="px-3 py-1.5 text-sm bg-yellow-500 text-white hover:bg-yellow-600 rounded-md transition-colors"
+                  >
+                    Bearbeiten
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  Schließen
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ ConfirmDialog ============
+function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <p className="text-gray-800 mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
           <button
-            onClick={() => navigator.clipboard.writeText(formatted)}
-            className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
           >
-            Kopieren
+            Abbrechen
           </button>
           <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors"
           >
-            Schließen
+            Löschen
           </button>
         </div>
       </div>
@@ -327,10 +485,32 @@ function JsonModal({ json, onClose }: { json: unknown; onClose: () => void }) {
 }
 
 // ============ TableViewer ============
-function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { entities: TableEntity[]; tableName: string; onDisconnect: () => void; onBackToTables: () => void }) {
+function TableViewer({ 
+  entities, 
+  tableName, 
+  connectionString,
+  onDisconnect, 
+  onBackToTables,
+  onEntitiesChange
+}: { 
+  entities: TableEntity[]; 
+  tableName: string; 
+  connectionString: string;
+  onDisconnect: () => void; 
+  onBackToTables: () => void;
+  onEntitiesChange: (entities: TableEntity[]) => void;
+}) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [selectedJson, setSelectedJson] = useState<unknown | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ value: unknown; entity: TableEntity; column: string } | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const getRowKey = (entity: TableEntity) => `${entity.partitionKey}|${entity.rowKey}`;
+  
+  const nonEditableColumns = ["partitionKey", "rowKey", "timestamp"];
+  const isColumnEditable = (column: string) => !nonEditableColumns.includes(column);
 
   const formatValue = (value: unknown): string => {
     if (value === null || value === undefined) return "-";
@@ -347,10 +527,65 @@ function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { en
     }
   };
 
-  const handleCellClick = (value: unknown) => {
-    const { isJson, parsed } = tryParseJson(value);
-    if (isJson) {
-      setSelectedJson(parsed);
+  const handleCellDoubleClick = (entity: TableEntity, column: string) => {
+    const value = entity[column];
+    setSelectedCell({ value, entity, column });
+  };
+
+  const handleCellSave = async (newValue: string) => {
+    if (!selectedCell) return;
+    
+    const { entity, column } = selectedCell;
+    const { isJson } = tryParseJson(entity[column]);
+    
+    // Bei JSON den geparsten Wert als String speichern
+    const valueToSave = isJson ? newValue : newValue;
+    const updatedEntity = { ...entity, [column]: valueToSave };
+    
+    await updateEntity(connectionString, tableName, updatedEntity);
+    
+    const updatedEntities = entities.map(e => 
+      e.partitionKey === entity.partitionKey && e.rowKey === entity.rowKey 
+        ? updatedEntity 
+        : e
+    );
+    onEntitiesChange(updatedEntities);
+  };
+
+  const handleRowSelect = (entity: TableEntity) => {
+    const key = getRowKey(entity);
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+    } else {
+      newSelected.add(key);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedRows.size === entities.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(entities.map(getRowKey)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true);
+    try {
+      const entitiesToDelete = entities.filter(e => selectedRows.has(getRowKey(e)));
+      for (const entity of entitiesToDelete) {
+        await deleteEntity(connectionString, tableName, entity.partitionKey, entity.rowKey);
+      }
+      const remainingEntities = entities.filter(e => !selectedRows.has(getRowKey(e)));
+      onEntitiesChange(remainingEntities);
+      setSelectedRows(new Set());
+    } catch (error) {
+      alert(`Fehler beim Löschen: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -406,7 +641,7 @@ function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { en
     
     if (isJson) {
       return (
-        <span className="flex items-center gap-1 text-purple-600 cursor-pointer hover:text-purple-800">
+        <span className="flex items-center gap-1 text-purple-600">
           <span className="text-xs bg-purple-100 px-1 rounded">JSON</span>
           <span className="truncate">{displayValue}</span>
         </span>
@@ -415,10 +650,26 @@ function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { en
     return displayValue;
   };
 
+  const isAllSelected = entities.length > 0 && selectedRows.size === entities.length;
+  const hasSelection = selectedRows.size > 0;
+
   return (
     <div className="w-full">
-      {selectedJson !== null && (
-        <JsonModal json={selectedJson} onClose={() => setSelectedJson(null)} />
+      {selectedCell !== null && (
+        <EditModal 
+          value={selectedCell.value}
+          columnName={selectedCell.column}
+          isEditable={isColumnEditable(selectedCell.column)}
+          onClose={() => setSelectedCell(null)}
+          onSave={handleCellSave}
+        />
+      )}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          message={`Möchten Sie ${selectedRows.size} Einträge wirklich löschen?`}
+          onConfirm={handleDeleteSelected}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       )}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
@@ -433,14 +684,38 @@ function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { en
             <span className="text-sm font-normal text-gray-500 ml-2">({entities.length} Einträge)</span>
           </h2>
         </div>
-        <button onClick={onDisconnect} className="text-sm text-gray-600 hover:text-gray-800 underline">
-          Trennen
-        </button>
+        <div className="flex items-center gap-4">
+          {hasSelection && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+              className="px-3 py-1.5 text-sm bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? "Lösche..." : `${selectedRows.size} löschen`}
+            </button>
+          )}
+          <button onClick={onDisconnect} className="text-sm text-gray-600 hover:text-gray-800 underline">
+            Trennen
+          </button>
+        </div>
       </div>
+      
+      <div className="text-xs text-gray-500 mb-2">
+        💡 Doppelklick auf eine Zelle öffnet das Detail-Popup
+      </div>
+
       <div className="overflow-x-auto border border-gray-200 rounded-lg shadow">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </th>
               {sortedColumns.map((column) => (
                 <th
                   key={column}
@@ -449,6 +724,7 @@ function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { en
                 >
                   <div className="flex items-center gap-1">
                     {column}
+                    {nonEditableColumns.includes(column) && <span className="text-gray-400">🔒</span>}
                     {sortColumn === column && (
                       <span className="text-blue-600">{sortDirection === "asc" ? "↑" : "↓"}</span>
                     )}
@@ -458,24 +734,38 @@ function TableViewer({ entities, tableName, onDisconnect, onBackToTables }: { en
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {sortedEntities.map((entity, idx) => (
-              <tr key={`${entity.partitionKey}-${entity.rowKey}-${idx}`} className="hover:bg-gray-50">
-                {sortedColumns.map((column) => {
-                  const value = entity[column];
-                  const { isJson } = tryParseJson(value);
-                  return (
-                    <td
-                      key={column}
-                      className={`px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-xs truncate ${isJson ? "cursor-pointer" : ""}`}
-                      title={formatValue(value)}
-                      onClick={() => isJson && handleCellClick(value)}
-                    >
-                      {renderCell(value)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {sortedEntities.map((entity, idx) => {
+              const rowKey = getRowKey(entity);
+              const isSelected = selectedRows.has(rowKey);
+              return (
+                <tr 
+                  key={`${entity.partitionKey}-${entity.rowKey}-${idx}`} 
+                  className={`hover:bg-gray-50 ${isSelected ? "bg-blue-50" : ""}`}
+                >
+                  <td className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleRowSelect(entity)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </td>
+                  {sortedColumns.map((column) => {
+                    const value = entity[column];
+                    return (
+                      <td
+                        key={column}
+                        className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-xs truncate cursor-pointer hover:bg-blue-50"
+                        title="Doppelklick zum Öffnen"
+                        onDoubleClick={() => handleCellDoubleClick(entity, column)}
+                      >
+                        {renderCell(value)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -588,9 +878,11 @@ function App() {
           <div className="bg-white p-6 rounded-lg shadow-md">
             <TableViewer 
               entities={state.entities} 
-              tableName={state.tableName} 
+              tableName={state.tableName}
+              connectionString={state.connectionString}
               onDisconnect={handleDisconnect}
               onBackToTables={handleBackToTables}
+              onEntitiesChange={(entities) => setState({ ...state, entities })}
             />
           </div>
         )}
