@@ -1,3 +1,5 @@
+import { ChevronRightIcon } from "@heroicons/react/20/solid";
+
 interface TableSelectorProps {
   tables: string[];
   onSelectTable: (tableName: string) => void;
@@ -27,7 +29,7 @@ export function TableSelector({ tables, onSelectTable, onDisconnect, isLoading }
               className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between group"
             >
               <span className="font-medium text-gray-700 group-hover:text-blue-600">{table}</span>
-              <span className="text-gray-400 group-hover:text-blue-500">→</span>
+              <ChevronRightIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
             </button>
           ))}
         </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { tryParseJson, highlightJson } from "../utils/json.tsx";
+import { tryParseJson, tryParseCsv, highlightJson } from "../utils/json.tsx";
+import { XMarkIcon, LockClosedIcon, PencilIcon, CheckIcon } from "@heroicons/react/20/solid";
 
 interface EditModalProps {
   value: unknown;
@@ -11,6 +12,7 @@ interface EditModalProps {
 
 export function EditModal({ value, columnName, isEditable, onClose, onSave }: EditModalProps) {
   const { isJson } = tryParseJson(value);
+  const { isCsv, rows: csvRows } = tryParseCsv(value);
   const stringValue = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
   
   const [isEditing, setIsEditing] = useState(false);
@@ -63,13 +65,18 @@ export function EditModal({ value, columnName, isEditable, onClose, onSave }: Ed
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-gray-800">{columnName}</h3>
             {isJson && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">JSON</span>}
-            {!isEditable && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">🔒 Schreibgeschützt</span>}
+            {isCsv && !isJson && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">CSV</span>}
+            {!isEditable && (
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded flex items-center gap-1">
+                <LockClosedIcon className="w-3 h-3" /> Schreibgeschützt
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+            className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
           >
-            ×
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
         
@@ -88,9 +95,29 @@ export function EditModal({ value, columnName, isEditable, onClose, onSave }: Ed
               spellCheck={false}
               autoFocus
             />
+          ) : isJson ? (
+            <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+              {highlightJson(value)}
+            </pre>
+          ) : isCsv ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border-collapse">
+                <tbody>
+                  {csvRows.map((row, rowIdx) => (
+                    <tr key={rowIdx} className={rowIdx === 0 ? "bg-gray-100 font-medium" : "hover:bg-gray-50"}>
+                      {row.map((cell, cellIdx) => (
+                        <td key={cellIdx} className="border border-gray-300 px-3 py-1.5 whitespace-nowrap">
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <pre className="text-sm font-mono whitespace-pre-wrap break-words">
-              {isJson ? highlightJson(value) : stringValue}
+              {stringValue}
             </pre>
           )}
         </div>
@@ -119,8 +146,9 @@ export function EditModal({ value, columnName, isEditable, onClose, onSave }: Ed
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
+                  className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
                 >
+                  <CheckIcon className="w-4 h-4" />
                   {isSaving ? "Speichern..." : "Speichern"}
                 </button>
               </>
@@ -129,8 +157,9 @@ export function EditModal({ value, columnName, isEditable, onClose, onSave }: Ed
                 {isEditable && (
                   <button
                     onClick={handleStartEdit}
-                    className="px-3 py-1.5 text-sm bg-yellow-500 text-white hover:bg-yellow-600 rounded-md transition-colors"
+                    className="px-3 py-1.5 text-sm bg-yellow-500 text-white hover:bg-yellow-600 rounded-md transition-colors flex items-center gap-1"
                   >
+                    <PencilIcon className="w-4 h-4" />
                     Bearbeiten
                   </button>
                 )}

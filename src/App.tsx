@@ -5,6 +5,8 @@ import { ConnectionForm, TableSelector, TableViewer } from "./components";
 
 function App() {
   const [state, setState] = useState<AppState>({ status: "disconnected" });
+  const [filter, setFilter] = useState("");
+  const [isFiltering, setIsFiltering] = useState(false);
 
   const handleConnect = async (connectionString: string) => {
     setState({ status: "loading-tables" });
@@ -17,14 +19,14 @@ function App() {
     }
   };
 
-  const handleSelectTable = async (tableName: string) => {
+  const handleSelectTable = async (tableName: string, filterString?: string) => {
     if (state.status !== "tables-loaded" && state.status !== "connected") return;
     
     const { connectionString, tables } = state;
     setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
     
     try {
-      const entities = await fetchTableEntities(connectionString, tableName);
+      const entities = await fetchTableEntities(connectionString, tableName, filterString);
       setState({ status: "connected", connectionString, tables, tableName, entities });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -32,9 +34,31 @@ function App() {
     }
   };
 
+  const handleFilter = async (filterString: string) => {
+    if (state.status !== "connected") return;
+    
+    setIsFiltering(true);
+    setFilter(filterString);
+    
+    try {
+      const entities = await fetchTableEntities(state.connectionString, state.tableName, filterString || undefined);
+      setState({ ...state, entities });
+    } catch (error) {
+      let message = error instanceof Error ? error.message : "Ungültiger Filter";
+      // Bessere Fehlermeldung für häufige OData-Fehler
+      if (message.includes("Syntax error")) {
+        message = "Ungültige Filter-Syntax. Verwende einfache Anführungszeichen (') für Strings, z.B.: Status eq 'active'";
+      }
+      alert(`Filter-Fehler: ${message}`);
+    } finally {
+      setIsFiltering(false);
+    }
+  };
+
   const handleBackToTables = () => {
     if (state.status === "connected") {
       setState({ status: "tables-loaded", connectionString: state.connectionString, tables: state.tables });
+      setFilter("");
     }
   };
 
@@ -112,6 +136,9 @@ function App() {
               onDisconnect={handleDisconnect}
               onBackToTables={handleBackToTables}
               onEntitiesChange={(entities) => setState({ ...state, entities })}
+              onFilter={handleFilter}
+              currentFilter={filter}
+              isFiltering={isFiltering}
             />
           </div>
         )}
