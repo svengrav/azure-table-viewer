@@ -100,12 +100,14 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
         </div>
         <div className="px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
           <button
+            type="submit"
             onClick={() => navigator.clipboard.writeText(getCopyText())}
             className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
           >
             Kopieren
           </button>
           <button
+            type="submit"
             onClick={onClose}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
           >
