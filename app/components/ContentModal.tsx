@@ -1,5 +1,5 @@
-import type { ContentType } from "../utils/jsonUtils";
-import { highlightJson } from "../utils/jsonUtils";
+import type { ContentType } from "../utils/jsonUtils.ts";
+import { highlightJson } from "../utils/jsonUtils.ts";
 
 interface ContentModalProps {
   content: unknown;

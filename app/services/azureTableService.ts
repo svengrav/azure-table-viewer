@@ -1,5 +1,5 @@
 import { TableClient, TableServiceClient } from "@azure/data-tables";
-import type { TableEntity } from "../types";
+import type { TableEntity } from "../types/index.ts";
 
 export async function fetchTableEntities(
   connectionString: string,

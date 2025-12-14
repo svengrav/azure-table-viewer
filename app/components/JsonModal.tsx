@@ -1,4 +1,4 @@
-import { highlightJson } from "../utils/jsonUtils";
+import { highlightJson } from "../utils/jsonUtils.ts";
 
 interface JsonModalProps {
   json: unknown;

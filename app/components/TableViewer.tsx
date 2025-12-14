@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { TableEntity } from "../types";
-import { analyzeContent, type ContentType } from "../utils/jsonUtils";
-import { ContentModal } from "./ContentModal";
+import type { TableEntity } from "../types/index.ts";
+import { analyzeContent, type ContentType } from "../utils/jsonUtils.ts";
+import { ContentModal } from "./ContentModal.tsx";
 
 interface TableViewerProps {
   entities: TableEntity[];

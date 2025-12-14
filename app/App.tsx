@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { AppState } from "./types";
-import { listTables, fetchTableEntities } from "./services/azureTableService";
-import { ConnectionForm } from "./components/ConnectionForm";
-import { TableSelector } from "./components/TableSelector";
-import { TableViewer } from "./components/TableViewer";
+import type { AppState } from "./types/index.ts";
+import { listTables, fetchTableEntities } from "./services/azureTableService.ts";
+import { ConnectionForm } from "./components/ConnectionForm.tsx";
+import { TableSelector } from "./components/TableSelector.tsx";
+import { TableViewer } from "./components/TableViewer.tsx";
 
 function App() {
   const [state, setState] = useState<AppState>({ status: "disconnected" });

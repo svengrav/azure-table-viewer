@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { STORAGE_KEY_CONNECTION } from "../constants/storage";
+import { STORAGE_KEY_CONNECTION } from "../constants/storage.ts";
 
 interface ConnectionFormProps {
   onConnect: (connectionString: string) => void;
