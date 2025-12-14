@@ -48,13 +48,14 @@ export async function listTablesApi(connectionString: string): Promise<string[]>
 
 export async function fetchTableEntitiesApi(
   connectionString: string,
-  tableName: string
+  tableName: string,
+  filter?: string
 ): Promise<TableEntity[]> {
   try {
     const response = await fetch(`${API_BASE}/api/azure/table/${tableName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connectionString }),
+      body: JSON.stringify({ connectionString, filter }),
     });
 
     if (!response.ok) {

@@ -109,7 +109,8 @@ function App() {
           <div className="bg-white p-6 rounded-lg shadow-md">
             <TableViewer 
               entities={state.entities} 
-              tableName={state.tableName} 
+              tableName={state.tableName}
+              connectionString={state.connectionString}
               onDisconnect={handleDisconnect}
               onBackToTables={handleBackToTables}
             />

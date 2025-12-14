@@ -1,23 +1,39 @@
-import { TableClient, TableServiceClient } from "@azure/data-tables";
+import { ListTableEntitiesOptions, TableClient, TableServiceClient } from "@azure/data-tables";
 import type { TableEntity } from "../../app/types/index.ts";
 
 export async function fetchTableEntities(
   connectionString: string,
-  tableName: string
+  tableName: string,
+  filter?: string
 ): Promise<TableEntity[]> {
   const client = TableClient.fromConnectionString(connectionString, tableName);
   
   const entities: TableEntity[] = [];
-  const iterator = client.listEntities();
   
-  for await (const entity of iterator) {
-    const { partitionKey, rowKey, timestamp, ...rest } = entity as Record<string, unknown>;
-    entities.push({
-      partitionKey: partitionKey as string,
-      rowKey: rowKey as string,
-      timestamp: timestamp instanceof Date ? timestamp.toISOString() : undefined,
-      ...rest,
-    });
+  // Azure SDK v13 uses queryOptions with filter property
+  // See: https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/tables/data-tables/src/TableClient.ts
+  const listOptions: ListTableEntitiesOptions = {};
+  if (filter && filter.trim()) {
+    listOptions.queryOptions = {
+      filter: filter.trim(),
+    };
+  }
+    
+  try {
+    const iterator = client.listEntities(listOptions);
+    
+    for await (const entity of iterator) {
+      const { partitionKey, rowKey, timestamp, ...rest } = entity as Record<string, unknown>;
+      entities.push({
+        partitionKey: partitionKey as string,
+        rowKey: rowKey as string,
+        timestamp: timestamp instanceof Date ? timestamp.toISOString() : undefined,
+        ...rest,
+      });
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error fetching entities:`, error instanceof Error ? error.message : error);
   }
   
   return entities;

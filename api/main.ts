@@ -49,7 +49,7 @@ router.post("/api/azure/tables", async (context) => {
 router.post("/api/azure/table/:name", async (context) => {
     try {
         const body = await context.request.body.json();
-        const { connectionString } = body as { connectionString: string };
+        const { connectionString, filter } = body as { connectionString: string; filter?: string };
         const tableName = context.params.name as string;
         
         if (!connectionString) {
@@ -64,11 +64,18 @@ router.post("/api/azure/table/:name", async (context) => {
             return;
         }
         
-        const entities = await fetchTableEntities(connectionString, tableName) as TableEntity[];
+        // Debug: Log filter if provided
+        if (filter && filter.trim()) {
+            console.log(`Applying filter: ${filter}`);
+        }
+        
+        const entities = await fetchTableEntities(connectionString, tableName, filter) as TableEntity[];
         context.response.body = { entities };
     } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to fetch entities";
+        console.error("Filter error:", errorMsg);
         context.response.status = 500;
-        context.response.body = { error: error instanceof Error ? error.message : "Failed to fetch entities" };
+        context.response.body = { error: errorMsg };
     }
 });
 

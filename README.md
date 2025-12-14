@@ -63,7 +63,45 @@ This starts both servers in parallel:
 1. **Open App**: Navigate to http://localhost:15173
 2. **Enter Connection**: Paste your Azure Storage connection string
 3. **Select Table**: View available tables from your account
-4. **Browse Data**: Search and explore entities in the selected table
+4. **Browse & Filter Data**: Search or filter entities using Quick Search or OData syntax
+
+### Filtering Data
+
+The app supports two filtering modes:
+
+#### Quick Search (Client-Side)
+- Simple text search across all columns
+- Case-insensitive
+- Instant results
+- No server round-trip
+
+#### OData Filter (Server-Side)
+- Full OData v4 filter syntax support
+- Powerful, SQL-like filtering
+- Server-executed for better performance
+- Syntax examples:
+
+```odata
+# Exact match
+partitionKey eq 'User1'
+
+# Startswith
+startswith(email, 'admin')
+
+# Comparison
+timestamp gt datetime'2024-01-01T00:00:00Z'
+
+# And/Or combinations
+partitionKey eq 'User1' and status eq 'Active'
+
+# Substring
+substringof('search', Name)
+
+# Numeric comparison
+age ge 18 and age le 65
+```
+
+For complete OData syntax documentation, see [Microsoft OData Docs](https://docs.microsoft.com/en-us/rest/api/storageservices/querying-tables-and-entities)
 
 ## API Endpoints
 
@@ -149,10 +187,28 @@ deno task serve       # Start Server with Build
 
 ## Security
 
-⚠️ **Note**: The current implementation stores the connection string in browser LocalStorage. For production, use:
-- Session-based authentication
-- Server-side credential management
-- OAuth/MSAL for Azure
+⚠️ **Important**: This application handles Azure Storage credentials and should be **self-hosted only**. Never deploy to a public server or share access with untrusted users.
+
+### Security Considerations
+
+- Connection strings contain sensitive credentials (account name and key)
+- The current implementation stores credentials in browser LocalStorage
+- API endpoints accept connection strings in request bodies
+- No authentication/authorization layer implemented
+
+### Self-Hosting Requirements
+
+- Deploy on a **private/internal network only**
+- Restrict access via firewall rules
+- Use HTTPS in production
+- Implement proper authentication before production use
+
+### For Production Use, Consider:
+- Session-based authentication instead of raw credentials
+- Server-side credential management (environment variables, Key Vault)
+- OAuth/MSAL for Azure authentication
+- Rate limiting and request validation
+- Audit logging for data access
 
 ## Error Handling
 

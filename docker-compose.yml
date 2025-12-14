@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Azure Table Viewer - Combined API + Frontend
+  azure-table-viewer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azure-table-viewer
+    ports:
+      - "${APP_PORT:-8020}:8000"
+    environment:
+      - DENO_ENV=production
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "deno", "eval", "fetch('http://localhost:8000').catch(() => Deno.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+networks:
+  app-network:
+    driver: bridge
