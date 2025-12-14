@@ -1,6 +1,8 @@
 import type { TableEntity } from "../types/index.ts";
 
-const API_BASE = "http://localhost:8000";
+// API endpoint configured in vite.config.ts
+declare const __API_BASE__: string;
+const API_BASE = __API_BASE__;
 
 interface ApiError {
   error: string;
@@ -8,7 +10,7 @@ interface ApiError {
 
 export async function validateConnectionApi(connectionString: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/api/azure/validate`, {
+    const response = await fetch(`${API_BASE}/azure/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ connectionString }),
@@ -26,7 +28,7 @@ export async function validateConnectionApi(connectionString: string): Promise<b
 
 export async function listTablesApi(connectionString: string): Promise<string[]> {
   try {
-    const response = await fetch(`${API_BASE}/api/azure/tables`, {
+    const response = await fetch(`${API_BASE}/azure/tables`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ connectionString }),
@@ -52,7 +54,7 @@ export async function fetchTableEntitiesApi(
   filter?: string
 ): Promise<TableEntity[]> {
   try {
-    const response = await fetch(`${API_BASE}/api/azure/table/${tableName}`, {
+    const response = await fetch(`${API_BASE}/azure/table/${tableName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ connectionString, filter }),

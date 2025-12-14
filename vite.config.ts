@@ -6,6 +6,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/aztv/',
   plugins: [react(), tailwindcss()],
+  define: {
+    __API_BASE__: JSON.stringify('/aztv/api'),
+  },
   server: {
     port: 15173,
   },

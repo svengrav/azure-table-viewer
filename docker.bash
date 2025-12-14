@@ -20,7 +20,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # 1. Nginx Config ins Gateway kopieren
-docker cp nginx.conf nginx-gateway:/etc/nginx/conf.d/aztv.conf
+cp nginx.conf /media/data/nginx/conf.d/aztv.conf
 
 # 2. Rebuild container
 docker compose down -v
