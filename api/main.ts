@@ -1,27 +1,75 @@
 import { Application, Router } from "@oak/oak";
 import { oakCors } from "@tajpouria/cors";
 import routeStaticFilesFrom from "./static/static.ts";
-import data from "./data.json" with { type: "json" };
+import { listTables, fetchTableEntities, validateConnection } from "./services/azureTableService.ts";
+import type { TableEntity } from "../app/types/index.ts";
 
 export const app = new Application();
 const router = new Router();
 
-
-
-router.get("/api/dinosaurs", (context) => {
-    context.response.body = data;
+// Azure Table Storage Routes
+router.post("/api/azure/validate", async (context) => {
+    try {
+        const body = await context.request.body.json();
+        const { connectionString } = body as { connectionString: string };
+        
+        if (!connectionString) {
+            context.response.status = 400;
+            context.response.body = { error: "Connection string required" };
+            return;
+        }
+        
+        const isValid = await validateConnection(connectionString);
+        context.response.body = { valid: isValid };
+    } catch (error) {
+        context.response.status = 500;
+        context.response.body = { error: error instanceof Error ? error.message : "Validation failed" };
+    }
 });
 
-router.get("/api/dinosaurs/:dinosaur", (context) => {
-    if (!context?.params?.dinosaur) {
-        context.response.body = "No dinosaur name provided.";
+router.post("/api/azure/tables", async (context) => {
+    try {
+        const body = await context.request.body.json();
+        const { connectionString } = body as { connectionString: string };
+        
+        if (!connectionString) {
+            context.response.status = 400;
+            context.response.body = { error: "Connection string required" };
+            return;
+        }
+        
+        const tables = await listTables(connectionString);
+        context.response.body = { tables };
+    } catch (error) {
+        context.response.status = 500;
+        context.response.body = { error: error instanceof Error ? error.message : "Failed to list tables" };
     }
+});
 
-    const dinosaur = data.find((item) =>
-        item.name.toLowerCase() === context.params.dinosaur.toLowerCase()
-    );
-
-    context.response.body = dinosaur ?? "No dinosaur found.";
+router.post("/api/azure/table/:name", async (context) => {
+    try {
+        const body = await context.request.body.json();
+        const { connectionString } = body as { connectionString: string };
+        const tableName = context.params.name as string;
+        
+        if (!connectionString) {
+            context.response.status = 400;
+            context.response.body = { error: "Connection string required" };
+            return;
+        }
+        
+        if (!tableName) {
+            context.response.status = 400;
+            context.response.body = { error: "Table name required" };
+            return;
+        }
+        
+        const entities = await fetchTableEntities(connectionString, tableName) as TableEntity[];
+        context.response.body = { entities };
+    } catch (error) {
+        context.response.status = 500;
+        context.response.body = { error: error instanceof Error ? error.message : "Failed to fetch entities" };
+    }
 });
 
 app.use(oakCors());

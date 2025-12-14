@@ -1,5 +1,5 @@
 import { TableClient, TableServiceClient } from "@azure/data-tables";
-import type { TableEntity } from "../types/index.ts";
+import type { TableEntity } from "../../app/types/index.ts";
 
 export async function fetchTableEntities(
   connectionString: string,
@@ -32,4 +32,17 @@ export async function listTables(connectionString: string): Promise<string[]> {
     }
   }
   return tables;
+}
+
+export async function validateConnection(connectionString: string): Promise<boolean> {
+  try {
+    const serviceClient = TableServiceClient.fromConnectionString(connectionString);
+    // Versuche die erste Tabelle zu laden - zeigt ob Credentials gültig sind
+    for await (const _table of serviceClient.listTables()) {
+      return true;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }

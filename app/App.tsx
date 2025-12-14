@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { AppState } from "./types/index.ts";
-import { listTables, fetchTableEntities } from "./services/azureTableService.ts";
+import { listTablesApi, fetchTableEntitiesApi } from "./services/apiClient.ts";
 import { ConnectionForm } from "./components/ConnectionForm.tsx";
 import { TableSelector } from "./components/TableSelector.tsx";
 import { TableViewer } from "./components/TableViewer.tsx";
@@ -11,7 +11,7 @@ function App() {
   const handleConnect = async (connectionString: string) => {
     setState({ status: "loading-tables" });
     try {
-      const tables = await listTables(connectionString);
+      const tables = await listTablesApi(connectionString);
       setState({ status: "tables-loaded", connectionString, tables });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -26,7 +26,7 @@ function App() {
     setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
     
     try {
-      const entities = await fetchTableEntities(connectionString, tableName);
+      const entities = await fetchTableEntitiesApi(connectionString, tableName);
       setState({ status: "connected", connectionString, tables, tableName, entities });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unbekannter Fehler";
