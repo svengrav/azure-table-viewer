@@ -1,8 +1,7 @@
 import type { TableEntity } from "../types/index.ts";
 
-// API endpoint configured in vite.config.ts
-declare const __API_BASE__: string;
-const API_BASE = __API_BASE__;
+// API endpoint - same path for both dev and production
+const API_BASE = "/aztv/api";
 
 interface ApiError {
   error: string;

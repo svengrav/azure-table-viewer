@@ -6,10 +6,14 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/aztv/',
   plugins: [react(), tailwindcss()],
-  define: {
-    __API_BASE__: JSON.stringify('/aztv/api'),
-  },
   server: {
     port: 15173,
+    proxy: {
+      '/aztv/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/aztv/, ''),
+      },
+    },
   },
 })
