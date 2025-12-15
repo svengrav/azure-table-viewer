@@ -1,18 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { AppState } from "./types/index.ts";
 import { listTablesApi, fetchTableEntitiesApi } from "./services/apiClient.ts";
 import { ConnectionForm } from "./components/ConnectionForm.tsx";
 import { TableSelector } from "./components/TableSelector.tsx";
 import { TableViewer } from "./components/TableViewer.tsx";
+import { getUrlParams, setUrlParams } from "./utils/urlParams.ts";
 
 function App() {
   const [state, setState] = useState<AppState>({ status: "disconnected" });
 
+  // Initialisiere State aus URL-Parametern beim Mount
+  useEffect(() => {
+    const params = getUrlParams();
+    if (params.connection) {
+      // Auto-Connect wenn connection Parameter vorhanden
+      handleConnectWithParams(params.connection, params.table);
+    }
+  }, []);
+
   const handleConnect = async (connectionString: string) => {
     setState({ status: "loading-tables" });
+    setUrlParams({ connection: connectionString });
     try {
       const tables = await listTablesApi(connectionString);
       setState({ status: "tables-loaded", connectionString, tables });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      setState({ status: "error", message, connectionString });
+    }
+  };
+
+  const handleConnectWithParams = async (connectionString: string, tableName?: string) => {
+    setState({ status: "loading-tables" });
+    setUrlParams({ connection: connectionString });
+    try {
+      const tables = await listTablesApi(connectionString);
+      // Wenn table Parameter vorhanden, versuche diese zu laden
+      if (tableName) {
+        setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
+        try {
+          const entities = await fetchTableEntitiesApi(connectionString, tableName);
+          setState({ status: "connected", connectionString, tables, tableName, entities });
+          setUrlParams({ connection: connectionString, table: tableName });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+          setState({ status: "error", message, connectionString });
+        }
+      } else {
+        setState({ status: "tables-loaded", connectionString, tables });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unbekannter Fehler";
       setState({ status: "error", message, connectionString });
@@ -24,6 +60,7 @@ function App() {
     
     const { connectionString, tables } = state;
     setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
+    setUrlParams({ connection: connectionString, table: tableName });
     
     try {
       const entities = await fetchTableEntitiesApi(connectionString, tableName);
@@ -37,11 +74,13 @@ function App() {
   const handleBackToTables = () => {
     if (state.status === "connected") {
       setState({ status: "tables-loaded", connectionString: state.connectionString, tables: state.tables });
+      setUrlParams({ connection: state.connectionString });
     }
   };
 
   const handleDisconnect = () => {
     setState({ status: "disconnected" });
+    setUrlParams({});
   };
 
   return (

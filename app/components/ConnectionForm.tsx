@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { STORAGE_KEY_CONNECTION } from "../constants/storage.ts";
+import { getUrlParams } from "../utils/urlParams.ts";
 
 interface ConnectionFormProps {
   onConnect: (connectionString: string) => void;
@@ -8,9 +9,13 @@ interface ConnectionFormProps {
 }
 
 export function ConnectionForm({ onConnect, isLoading, initialValue }: ConnectionFormProps) {
-  const [connectionString, setConnectionString] = useState(() => 
-    initialValue || localStorage.getItem(STORAGE_KEY_CONNECTION) || ""
-  );
+  const [connectionString, setConnectionString] = useState(() => {
+    // Priorität: initialValue > URL-Parameter > localStorage
+    if (initialValue) return initialValue;
+    const urlParams = getUrlParams();
+    if (urlParams.connection) return urlParams.connection;
+    return localStorage.getItem(STORAGE_KEY_CONNECTION) || "";
+  });
   const [rememberCredentials, setRememberCredentials] = useState(() => 
     !!localStorage.getItem(STORAGE_KEY_CONNECTION)
   );
