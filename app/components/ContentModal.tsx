@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ContentType } from "../utils/jsonUtils.ts";
 import { highlightJson } from "../utils/jsonUtils.ts";
 
@@ -8,11 +9,23 @@ interface ContentModalProps {
 }
 
 export function ContentModal({ content, type, onClose }: ContentModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.key === "Escape" && onClose();
+    };
+
+    self.addEventListener("keydown", handleKeyDown);
+    return () => self.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const getTitle = () => {
     switch (type) {
-      case "json": return "JSON Preview";
-      case "csv": return "CSV Preview";
-      case "text": return "Text Preview";
+      case "json":
+        return "JSON Preview";
+      case "csv":
+        return "CSV Preview";
+      case "text":
+        return "Text Preview";
     }
   };
 
@@ -21,7 +34,7 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
       return JSON.stringify(content, null, 2);
     }
     if (type === "csv" && Array.isArray(content)) {
-      return (content as string[][]).map(row => row.join("\t")).join("\n");
+      return (content as string[][]).map((row) => row.join("\t")).join("\n");
     }
     return String(content);
   };
@@ -29,7 +42,7 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
   const renderContent = () => {
     if (type === "json") {
       return (
-        <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+        <pre className="text-sm font-mono whitespace-pre-wrap wrap-break-word">
           {highlightJson(content)}
         </pre>
       );
@@ -38,7 +51,7 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
     if (type === "csv" && Array.isArray(content)) {
       const rows = content as string[][];
       const hasHeader = rows.length > 0;
-      
+
       return (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -46,7 +59,10 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
               <thead className="bg-gray-100">
                 <tr>
                   {rows[0].map((cell, idx) => (
-                    <th key={idx} className="px-3 py-2 text-left font-medium text-gray-700 whitespace-nowrap">
+                    <th
+                      key={idx}
+                      className="px-3 py-2 text-left font-medium text-gray-700 whitespace-nowrap"
+                    >
                       {cell}
                     </th>
                   ))}
@@ -57,7 +73,10 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
               {rows.slice(1).map((row, rowIdx) => (
                 <tr key={rowIdx} className="hover:bg-gray-50">
                   {row.map((cell, cellIdx) => (
-                    <td key={cellIdx} className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                    <td
+                      key={cellIdx}
+                      className="px-3 py-2 text-gray-600 whitespace-nowrap"
+                    >
                       {cell}
                     </td>
                   ))}
@@ -74,21 +93,25 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
 
     // Plain Text
     return (
-      <pre className="text-sm font-mono whitespace-pre-wrap break-words text-gray-700">
+      <pre className="text-sm font-mono whitespace-pre-wrap wrap-break-word text-gray-700">
         {String(content)}
       </pre>
     );
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div 
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800">{getTitle()}</h3>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
           >
@@ -104,14 +127,14 @@ export function ContentModal({ content, type, onClose }: ContentModalProps) {
             onClick={() => navigator.clipboard.writeText(getCopyText())}
             className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
           >
-            Kopieren
+            Copy
           </button>
           <button
             type="submit"
             onClick={onClose}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
           >
-            Schließen
+            Close
           </button>
         </div>
       </div>

@@ -35,7 +35,6 @@ function App() {
     setUrlParams({ connection: connectionString });
     try {
       const tables = await listTablesApi(connectionString);
-      // Wenn table Parameter vorhanden, versuche diese zu laden
       if (tableName) {
         setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
         try {
@@ -104,7 +103,7 @@ function App() {
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white p-8 rounded-lg shadow-md">
               <h2 className="text-lg font-medium text-gray-800 mb-6 text-center">Mit Azure Table Storage verbinden</h2>
-              <ConnectionForm onConnect={handleConnect} isLoading={true} />
+              <ConnectionForm onConnect={handleConnect} isLoading />
             </div>
           </div>
         )}

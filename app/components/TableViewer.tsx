@@ -25,8 +25,8 @@ export function TableViewer({
   onDisconnect,
   onBackToTables,
 }: TableViewerProps) {
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortColumn, setSortColumn] = useState<string | null>("timestamp");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"simple" | "odata">("simple");
@@ -170,7 +170,7 @@ export function TableViewer({
     const priorityColumns = ["partitionKey", "rowKey", "timestamp"];
     return [
       ...priorityColumns.filter((col) => columns.includes(col)),
-      ...columns.filter((col) => !priorityColumns.includes(col)).sort(),
+      ...columns.filter((col) => !priorityColumns.includes(col) && col !== "etag").sort(),
     ];
   }, [columns]);
 
@@ -219,6 +219,7 @@ export function TableViewer({
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={onBackToTables}
             className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
           >
@@ -238,16 +239,16 @@ export function TableViewer({
             className="text-sm px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-1"
             title="Refresh table data"
           >
-            ⟳ Refresh
+            Refresh
           </button>
           <button
             type="button"
             onClick={handleDownloadCSV}
             disabled={entities.length === 0}
-            className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+            className="text-sm px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1"
             title="Download filtered data as CSV"
           >
-            ⬇ CSV Export
+            CSV Export
           </button>
           <button
             type="button"
@@ -279,6 +280,7 @@ export function TableViewer({
             Quick Search
           </button>
           <button
+            type="button"
             onClick={() => {
               setFilterMode("odata");
               setSearchQuery("");
@@ -322,6 +324,7 @@ export function TableViewer({
             <div className="flex justify-between items-start">
               <p className="text-xs text-gray-500">OData filter syntax (server-side)</p>
               <button
+                type="button"
                 onClick={handleApplyFilter}
                 disabled={isLoading}
                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"

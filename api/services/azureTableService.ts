@@ -23,11 +23,16 @@ export async function fetchTableEntities(
     const iterator = client.listEntities(listOptions);
     
     for await (const entity of iterator) {
-      const { partitionKey, rowKey, timestamp, ...rest } = entity as Record<string, unknown>;
+      const { partitionKey, rowKey, etag, ...rest } = entity as Record<string, unknown>;
+      
+      // Azure SDK gibt timestamp als Date Objekt zurück
+      const entityTimestamp = (entity as any).timestamp || new Date();
+      const timestampStr = entityTimestamp instanceof Date ? entityTimestamp.toISOString() : String(entityTimestamp);
+      
       entities.push({
         partitionKey: partitionKey as string,
         rowKey: rowKey as string,
-        timestamp: timestamp instanceof Date ? timestamp.toISOString() : undefined,
+        timestamp: timestampStr,
         ...rest,
       });
     }
