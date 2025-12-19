@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { TableEntity } from "../types/index.ts";
 import { analyzeContent, type ContentType } from "../utils/jsonUtils.ts";
-import { entitiesToCSV, downloadCSV } from "../utils/csvExport.ts";
+import { downloadCSV, entitiesToCSV } from "../utils/csvExport.ts";
 import { ContentModal } from "./ContentModal.tsx";
 import { fetchTableEntitiesApi } from "../services/apiClient.ts";
+import { ArrowLeftCircleIcon } from '@heroicons/react/24/solid'
 
 interface TableViewerProps {
   entities: TableEntity[];
@@ -103,13 +104,17 @@ export function TableViewer({
         const filtered = await fetchTableEntitiesApi(
           connectionString,
           tableName,
-          query
+          query,
         );
-        console.log("OData Filter Response:", { count: filtered.length, entities: filtered });
+        console.log("OData Filter Response:", {
+          count: filtered.length,
+          entities: filtered,
+        });
         setEntities(filtered);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Filter failed";
+        const message = error instanceof Error
+          ? error.message
+          : "Filter failed";
         console.error("OData Filter Error:", message);
         setFilterError(message);
         setEntities(initialEntities);
@@ -117,7 +122,7 @@ export function TableViewer({
         setIsLoading(false);
       }
     },
-    [connectionString, tableName, initialEntities]
+    [connectionString, tableName, initialEntities],
   );
 
   const handleApplyFilter = useCallback(() => {
@@ -130,8 +135,8 @@ export function TableViewer({
     setEntities(initialEntities);
     setSearchQuery("");
     setFilterError(null);
-    setSortColumn(null);
-    setSortDirection("asc");
+    setSortColumn("timestamp");
+    setSortDirection("desc");
   }, [initialEntities]);
 
   const sortedEntities = useMemo(() => {
@@ -153,24 +158,25 @@ export function TableViewer({
     });
   }, [entities, sortColumn, sortDirection]);
 
-  
   const handleDownloadCSV = useCallback(() => {
     const csv = entitiesToCSV(sortedEntities);
     const timestamp = new Date().toISOString().slice(0, 10);
     downloadCSV(csv, `${tableName}_${timestamp}.csv`);
   }, [sortedEntities, tableName]);
 
-
   const columns = useMemo(
-    () => Array.from(new Set(entities.flatMap((entity) => Object.keys(entity)))),
-    [entities]
+    () =>
+      Array.from(new Set(entities.flatMap((entity) => Object.keys(entity)))),
+    [entities],
   );
 
   const sortedColumns = useMemo(() => {
     const priorityColumns = ["partitionKey", "rowKey", "timestamp"];
     return [
       ...priorityColumns.filter((col) => columns.includes(col)),
-      ...columns.filter((col) => !priorityColumns.includes(col) && col !== "etag").sort(),
+      ...columns.filter((col) =>
+        !priorityColumns.includes(col) && col !== "etag"
+      ).sort(),
     ];
   }, [columns]);
 
@@ -188,16 +194,21 @@ export function TableViewer({
     const displayValue = formatValue(value, column);
 
     if (analysis.isClickable) {
-      const textColorClass =
-        analysis.type === "json"
-          ? "text-purple-600 hover:text-purple-800"
-          : analysis.type === "csv"
-            ? "text-green-600 hover:text-green-800"
-            : "text-blue-600 hover:text-blue-800";
+      const textColorClass = analysis.type === "json"
+        ? "text-purple-600 hover:text-purple-800"
+        : analysis.type === "csv"
+        ? "text-green-600 hover:text-green-800"
+        : "text-blue-600 hover:text-blue-800";
 
       return (
-        <span className={`flex items-center gap-1 cursor-pointer ${textColorClass}`}>
-          <span className={`text-xs px-1 rounded ${getLabelStyle(analysis.labelColor)}`}>
+        <span
+          className={`flex items-center gap-1 cursor-pointer ${textColorClass}`}
+        >
+          <span
+            className={`text-xs px-1 rounded ${
+              getLabelStyle(analysis.labelColor)
+            }`}
+          >
             {analysis.label}
           </span>
           <span className="truncate">{displayValue}</span>
@@ -216,17 +227,17 @@ export function TableViewer({
           onClose={() => setModalState(null)}
         />
       )}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between  items-end mb-4 ">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onBackToTables}
-            className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+            className="h-6 flex items-center text-blue-600 hover:text-blue-800 cursor-pointer"
           >
-            ← Tables
+            <ArrowLeftCircleIcon className="h-7 mt-0.5" />
           </button>
           <h2 className="text-xl font-semibold text-gray-800">
-            <span className="text-blue-600">{tableName}</span>
+            <span className="text-slate-800">{tableName}</span>
             <span className="text-sm font-normal text-gray-500 ml-2">
               ({entities.length} entries)
             </span>
@@ -236,7 +247,7 @@ export function TableViewer({
           <button
             type="button"
             onClick={handleRefresh}
-            className="text-sm px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-1"
+            className="text-sm px-3 py-1 cursor-pointer  bg-gray-500 text-white rounded hover:bg-gray-600 flex items-center gap-1"
             title="Refresh table data"
           >
             Refresh
@@ -245,7 +256,7 @@ export function TableViewer({
             type="button"
             onClick={handleDownloadCSV}
             disabled={entities.length === 0}
-            className="text-sm px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1"
+            className="text-sm px-3 py-1 cursor-pointer  bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
             title="Download filtered data as CSV"
           >
             CSV Export
@@ -253,7 +264,7 @@ export function TableViewer({
           <button
             type="button"
             onClick={onDisconnect}
-            className="text-sm text-gray-600 hover:text-gray-800 underline"
+            className="text-sm cursor-pointer  bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded flex items-center gap-1"
           >
             Disconnect
           </button>
@@ -264,7 +275,7 @@ export function TableViewer({
       <div className="mb-6 p-4 bg-white border border-gray-200 rounded-lg">
         <div className="flex gap-2 mb-3">
           <button
-            type="button"  
+            type="button"
             onClick={() => {
               setFilterMode("simple");
               setSearchQuery("");
@@ -308,6 +319,7 @@ export function TableViewer({
             />
             <p className="text-xs text-gray-500">
               Searches across all columns (client-side)
+
             </p>
           </div>
         )}
@@ -322,7 +334,9 @@ export function TableViewer({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
             />
             <div className="flex justify-between items-start">
-              <p className="text-xs text-gray-500">OData filter syntax (server-side)</p>
+              <p className="text-xs text-gray-500">
+                OData filter syntax (server-side)
+              </p>
               <button
                 type="button"
                 onClick={handleApplyFilter}
@@ -388,8 +402,7 @@ export function TableViewer({
                         }`}
                         title={formatValue(value, column)}
                         onClick={() =>
-                          analysis.isClickable && handleCellClick(value)
-                        }
+                          analysis.isClickable && handleCellClick(value)}
                       >
                         {renderCell(value, column)}
                       </td>
