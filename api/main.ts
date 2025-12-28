@@ -2,7 +2,6 @@ import { Application, Router } from "@oak/oak";
 import { oakCors } from "@tajpouria/cors";
 import routeStaticFilesFrom from "./static/static.ts";
 import { listTables, fetchTableEntities, validateConnection } from "./services/azureTableService.ts";
-import type { TableEntity } from "../app/types/index.ts";
 
 export const app = new Application();
 const router = new Router();
@@ -49,7 +48,12 @@ router.post("/api/azure/tables", async (context) => {
 router.post("/api/azure/table/:name", async (context) => {
     try {
         const body = await context.request.body.json();
-        const { connectionString, filter } = body as { connectionString: string; filter?: string };
+        const { connectionString, filter, pageSize, continuationToken } = body as { 
+            connectionString: string; 
+            filter?: string;
+            pageSize?: number;
+            continuationToken?: string;
+        };
         const tableName = context.params.name as string;
         
         if (!connectionString) {
@@ -68,9 +72,15 @@ router.post("/api/azure/table/:name", async (context) => {
         if (filter && filter.trim()) {
             console.log(`Applying filter: ${filter}`);
         }
+        if (pageSize) {
+            console.log(`Page size: ${pageSize}`);
+        }
+        if (continuationToken) {
+            console.log(`Continuation token provided (length: ${continuationToken.length})`);
+        }
         
-        const entities = await fetchTableEntities(connectionString, tableName, filter) as TableEntity[];
-        context.response.body = { entities };
+        const result = await fetchTableEntities(connectionString, tableName, filter, pageSize, continuationToken);
+        context.response.body = result;
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Failed to fetch entities";
         console.error("Filter error:", errorMsg);

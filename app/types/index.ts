@@ -5,6 +5,12 @@ export interface TableEntity {
   [key: string]: unknown;
 }
 
+export interface PaginatedResponse<T> {
+  entities: T[];
+  continuationToken?: string;
+  hasMore: boolean;
+}
+
 export type AppState =
   | { status: "disconnected" }
   | { status: "loading-tables" }

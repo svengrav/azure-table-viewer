@@ -18,6 +18,8 @@ function App() {
     }
   }, []);
 
+  
+
   const handleConnect = async (connectionString: string) => {
     setState({ status: "loading-tables" });
     setUrlParams({ connection: connectionString });
@@ -25,7 +27,7 @@ function App() {
       const tables = await listTablesApi(connectionString);
       setState({ status: "tables-loaded", connectionString, tables });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const message = error instanceof Error ? error.message : "Unknown error";
       setState({ status: "error", message, connectionString });
     }
   };
@@ -38,18 +40,18 @@ function App() {
       if (tableName) {
         setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
         try {
-          const entities = await fetchTableEntitiesApi(connectionString, tableName);
-          setState({ status: "connected", connectionString, tables, tableName, entities });
+          const result = await fetchTableEntitiesApi(connectionString, tableName);
+          setState({ status: "connected", connectionString, tables, tableName, entities: result.entities });
           setUrlParams({ connection: connectionString, table: tableName });
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+          const message = error instanceof Error ? error.message : "Unknown error";
           setState({ status: "error", message, connectionString });
         }
       } else {
         setState({ status: "tables-loaded", connectionString, tables });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const message = error instanceof Error ? error.message : "Unknown error";
       setState({ status: "error", message, connectionString });
     }
   };
@@ -62,10 +64,10 @@ function App() {
     setUrlParams({ connection: connectionString, table: tableName });
     
     try {
-      const entities = await fetchTableEntitiesApi(connectionString, tableName);
-      setState({ status: "connected", connectionString, tables, tableName, entities });
+      const result = await fetchTableEntitiesApi(connectionString, tableName);
+      setState({ status: "connected", connectionString, tables, tableName, entities: result.entities });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const message = error instanceof Error ? error.message : "Unknown error";
       setState({ status: "error", message, connectionString });
     }
   };
@@ -93,7 +95,7 @@ function App() {
         {state.status === "disconnected" && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white p-8 rounded-lg shadow-md">
-              <h2 className="text-lg font-medium text-gray-800 mb-6 text-center">Mit Azure Table Storage verbinden</h2>
+              <h2 className="text-lg font-medium text-gray-800 mb-6 text-center">Connect to Azure Table Storage</h2>
               <ConnectionForm onConnect={handleConnect} isLoading={false} />
             </div>
           </div>
@@ -102,7 +104,7 @@ function App() {
         {state.status === "loading-tables" && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white p-8 rounded-lg shadow-md">
-              <h2 className="text-lg font-medium text-gray-800 mb-6 text-center">Mit Azure Table Storage verbinden</h2>
+              <h2 className="text-lg font-medium text-gray-800 mb-6 text-center">Connect to Azure Table Storage</h2>
               <ConnectionForm onConnect={handleConnect} isLoading />
             </div>
           </div>
@@ -125,7 +127,7 @@ function App() {
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white p-8 rounded-lg shadow-md">
               <div className="text-center">
-                <p className="text-gray-600 mb-2">Lade Daten aus Tabelle...</p>
+                <p className="text-gray-600 mb-2">Loading data from table...</p>
                 <p className="text-blue-600 font-medium">{state.selectedTable}</p>
               </div>
             </div>
@@ -136,7 +138,7 @@ function App() {
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-2xl">
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-                <strong className="font-medium">Fehler:</strong> {state.message}
+                <strong className="font-medium">Error:</strong> {state.message}
               </div>
               <ConnectionForm onConnect={handleConnect} isLoading={false} initialValue={state.connectionString} />
             </div>

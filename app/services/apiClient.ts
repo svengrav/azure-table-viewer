@@ -47,16 +47,24 @@ export async function listTablesApi(connectionString: string): Promise<string[]>
   }
 }
 
+export interface PaginatedEntitiesResponse {
+  entities: TableEntity[];
+  continuationToken?: string;
+  hasMore: boolean;
+}
+
 export async function fetchTableEntitiesApi(
   connectionString: string,
   tableName: string,
-  filter?: string
-): Promise<TableEntity[]> {
+  filter?: string,
+  pageSize?: number,
+  continuationToken?: string
+): Promise<PaginatedEntitiesResponse> {
   try {
     const response = await fetch(`${API_BASE}/azure/table/${tableName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connectionString, filter }),
+      body: JSON.stringify({ connectionString, filter, pageSize, continuationToken }),
     });
 
     if (!response.ok) {
@@ -64,8 +72,8 @@ export async function fetchTableEntitiesApi(
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    const data = (await response.json()) as { entities: TableEntity[] };
-    return data.entities;
+    const data = (await response.json()) as PaginatedEntitiesResponse;
+    return data;
   } catch (error) {
     throw new Error(
       error instanceof Error ? error.message : "Failed to fetch entities"

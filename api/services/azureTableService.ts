@@ -1,11 +1,19 @@
 import { ListTableEntitiesOptions, TableClient, TableServiceClient } from "@azure/data-tables";
 import type { TableEntity } from "../../app/types/index.ts";
 
+export interface PaginatedEntitiesResponse {
+  entities: TableEntity[];
+  continuationToken?: string;
+  hasMore: boolean;
+}
+
 export async function fetchTableEntities(
   connectionString: string,
   tableName: string,
-  filter?: string
-): Promise<TableEntity[]> {
+  filter?: string,
+  pageSize?: number,
+  continuationToken?: string
+): Promise<PaginatedEntitiesResponse> {
   const client = TableClient.fromConnectionString(connectionString, tableName);
   
   const entities: TableEntity[] = [];
@@ -20,28 +28,49 @@ export async function fetchTableEntities(
   }
     
   try {
-    const iterator = client.listEntities(listOptions);
+    // Use byPage() for pagination support
+    const maxPageSize = pageSize || 100;
+    const pages = client.listEntities(listOptions).byPage({
+      maxPageSize,
+      continuationToken,
+    });
     
-    for await (const entity of iterator) {
-      const { partitionKey, rowKey, etag, ...rest } = entity as Record<string, unknown>;
-      
-      // Azure SDK gibt timestamp als Date Objekt zurück
-      const entityTimestamp = (entity as any).timestamp || new Date();
-      const timestampStr = entityTimestamp instanceof Date ? entityTimestamp.toISOString() : String(entityTimestamp);
-      
-      entities.push({
-        partitionKey: partitionKey as string,
-        rowKey: rowKey as string,
-        timestamp: timestampStr,
-        ...rest,
-      });
+    // Get only the first page
+    const firstPage = await pages.next();
+    
+    if (!firstPage.done && firstPage.value) {
+      for (const entity of firstPage.value) {
+        const { partitionKey, rowKey, etag, ...rest } = entity as Record<string, unknown>;
+        
+        // Azure SDK gibt timestamp als Date Objekt zurück
+        const entityTimestamp = (entity as any).timestamp || new Date();
+        const timestampStr = entityTimestamp instanceof Date ? entityTimestamp.toISOString() : String(entityTimestamp);
+        
+        entities.push({
+          partitionKey: partitionKey as string,
+          rowKey: rowKey as string,
+          timestamp: timestampStr,
+          ...rest,
+        });
+      }
     }
+    
+    // Extract continuation token for next page
+    const nextToken = firstPage.value?.continuationToken;
+    
+    return {
+      entities,
+      continuationToken: nextToken,
+      hasMore: !!nextToken,
+    };
     
   } catch (error) {
     console.error(`❌ Error fetching entities:`, error instanceof Error ? error.message : error);
+    return {
+      entities: [],
+      hasMore: false,
+    };
   }
-  
-  return entities;
 }
 
 export async function listTables(connectionString: string): Promise<string[]> {

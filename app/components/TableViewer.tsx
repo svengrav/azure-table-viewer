@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import type { TableEntity } from "../types/index.ts";
 import { analyzeContent, type ContentType } from "../utils/jsonUtils.ts";
 import { downloadCSV, entitiesToCSV } from "../utils/csvExport.ts";
@@ -34,6 +34,20 @@ export function TableViewer({
   const [isLoading, setIsLoading] = useState(false);
   const [entities, setEntities] = useState<TableEntity[]>(initialEntities);
   const [filterError, setFilterError] = useState<string | null>(null);
+  
+  // Pagination state - Load More Pattern
+  const [loadSize, setLoadSize] = useState<number>(100);
+  const [nextToken, setNextToken] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalLoaded, setTotalLoaded] = useState(0);
+
+  // Update entities when initialEntities change (e.g., on table reload)
+  useEffect(() => {
+    setEntities(initialEntities);
+    setNextToken(undefined);
+    setHasMore(false);
+    setTotalLoaded(initialEntities.length);
+  }, [initialEntities]);
 
   const formatTimestamp = (value: string): string => {
     const date = new Date(value);
@@ -96,21 +110,26 @@ export function TableViewer({
       setFilterError(null);
       if (!query.trim()) {
         setEntities(initialEntities);
+        setTotalLoaded(initialEntities.length);
         return;
       }
       setIsLoading(true);
       console.log("OData Filter Request:", { tableName, filter: query });
       try {
-        const filtered = await fetchTableEntitiesApi(
+        const result = await fetchTableEntitiesApi(
           connectionString,
           tableName,
           query,
+          loadSize,
         );
         console.log("OData Filter Response:", {
-          count: filtered.length,
-          entities: filtered,
+          count: result.entities.length,
+          hasMore: result.hasMore,
         });
-        setEntities(filtered);
+        setEntities(result.entities);
+        setNextToken(result.continuationToken);
+        setHasMore(result.hasMore);
+        setTotalLoaded(result.entities.length);
       } catch (error) {
         const message = error instanceof Error
           ? error.message
@@ -122,7 +141,7 @@ export function TableViewer({
         setIsLoading(false);
       }
     },
-    [connectionString, tableName, initialEntities],
+    [connectionString, tableName, initialEntities, loadSize],
   );
 
   const handleApplyFilter = useCallback(() => {
@@ -137,7 +156,59 @@ export function TableViewer({
     setFilterError(null);
     setSortColumn("timestamp");
     setSortDirection("desc");
+    setNextToken(undefined);
+    setHasMore(false);
+    setTotalLoaded(initialEntities.length);
   }, [initialEntities]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!nextToken || isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      const result = await fetchTableEntitiesApi(
+        connectionString,
+        tableName,
+        filterMode === "odata" ? searchQuery : undefined,
+        loadSize,
+        nextToken,
+      );
+      
+      // Append new entities to existing ones
+      setEntities(prev => [...prev, ...result.entities]);
+      setNextToken(result.continuationToken);
+      setHasMore(result.hasMore);
+      setTotalLoaded(prev => prev + result.entities.length);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load more";
+      setFilterError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [nextToken, isLoading, connectionString, tableName, filterMode, searchQuery, loadSize]);
+
+  const handleLoadSizeChange = useCallback(async (newSize: number) => {
+    setLoadSize(newSize);
+    setIsLoading(true);
+    try {
+      const result = await fetchTableEntitiesApi(
+        connectionString,
+        tableName,
+        filterMode === "odata" ? searchQuery : undefined,
+        newSize,
+      );
+      
+      setEntities(result.entities);
+      setNextToken(result.continuationToken);
+      setHasMore(result.hasMore);
+      setTotalLoaded(result.entities.length);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to change load size";
+      setFilterError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [connectionString, tableName, filterMode, searchQuery]);
 
   const sortedEntities = useMemo(() => {
     return [...entities].sort((a, b) => {
@@ -354,6 +425,43 @@ export function TableViewer({
             {filterError}
           </div>
         )}
+      </div>
+
+      {/* Load More Controls */}
+      <div className="mb-4 p-4 bg-white border border-gray-200 rounded-lg flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-700">Load Size:</span>
+          <select
+            value={loadSize}
+            onChange={(e) => handleLoadSizeChange(Number(e.target.value))}
+            className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isLoading}
+          >
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={200}>200</option>
+            <option value={500}>500</option>
+          </select>
+          <span className="text-sm text-gray-500">
+            {totalLoaded} entries loaded
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {hasMore && (
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={isLoading}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {isLoading ? "Loading..." : `Load ${loadSize} more`}
+            </button>
+          )}
+          {!hasMore && totalLoaded > 0 && (
+            <span className="text-sm text-gray-500">All entries loaded</span>
+          )}
+        </div>
       </div>
 
       {entities.length === 0 && !filterError && (
