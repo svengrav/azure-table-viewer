@@ -41,7 +41,7 @@ function App() {
         setState({ status: "loading-data", connectionString, tables, selectedTable: tableName });
         try {
           const result = await fetchTableEntitiesApi(connectionString, tableName);
-          setState({ status: "connected", connectionString, tables, tableName, entities: result.entities });
+          setState({ status: "connected", connectionString, tables, tableName, entities: result.entities, continuationToken: result.continuationToken, hasMore: result.hasMore });
           setUrlParams({ connection: connectionString, table: tableName });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unknown error";
@@ -65,7 +65,7 @@ function App() {
     
     try {
       const result = await fetchTableEntitiesApi(connectionString, tableName);
-      setState({ status: "connected", connectionString, tables, tableName, entities: result.entities });
+      setState({ status: "connected", connectionString, tables, tableName, entities: result.entities, continuationToken: result.continuationToken, hasMore: result.hasMore });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       setState({ status: "error", message, connectionString });
@@ -151,6 +151,8 @@ function App() {
               entities={state.entities} 
               tableName={state.tableName}
               connectionString={state.connectionString}
+              initialContinuationToken={state.continuationToken}
+              initialHasMore={state.hasMore}
               onDisconnect={handleDisconnect}
               onBackToTables={handleBackToTables}
             />

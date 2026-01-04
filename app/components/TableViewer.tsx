@@ -10,6 +10,8 @@ interface TableViewerProps {
   entities: TableEntity[];
   tableName: string;
   connectionString: string;
+  initialContinuationToken?: string;
+  initialHasMore: boolean;
   onDisconnect: () => void;
   onBackToTables: () => void;
 }
@@ -23,6 +25,8 @@ export function TableViewer({
   entities: initialEntities,
   tableName,
   connectionString,
+  initialContinuationToken,
+  initialHasMore,
   onDisconnect,
   onBackToTables,
 }: TableViewerProps) {
@@ -44,10 +48,10 @@ export function TableViewer({
   // Update entities when initialEntities change (e.g., on table reload)
   useEffect(() => {
     setEntities(initialEntities);
-    setNextToken(undefined);
-    setHasMore(false);
+    setNextToken(initialContinuationToken);
+    setHasMore(initialHasMore);
     setTotalLoaded(initialEntities.length);
-  }, [initialEntities]);
+  }, [initialEntities, initialContinuationToken, initialHasMore]);
 
   const formatTimestamp = (value: string): string => {
     const date = new Date(value);
