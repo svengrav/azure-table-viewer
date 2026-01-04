@@ -30,8 +30,8 @@ export function TableViewer({
   onDisconnect,
   onBackToTables,
 }: TableViewerProps) {
-  const [sortColumn, setSortColumn] = useState<string | null>("timestamp");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"simple" | "odata">("simple");
@@ -158,8 +158,8 @@ export function TableViewer({
     setEntities(initialEntities);
     setSearchQuery("");
     setFilterError(null);
-    setSortColumn("timestamp");
-    setSortDirection("desc");
+    setSortColumn(null);
+    setSortDirection("asc");
     setNextToken(undefined);
     setHasMore(false);
     setTotalLoaded(initialEntities.length);
@@ -317,6 +317,9 @@ export function TableViewer({
               ({entities.length} entries)
             </span>
           </h2>
+          <p className="text-xs text-gray-400 mt-1">
+            Sorted by Azure native order (PartitionKey, RowKey)
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
